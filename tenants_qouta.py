@@ -1,0 +1,76 @@
+#    Copyright 2015 Mirantis, Inc
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+import csv
+import datetime
+
+from cinderclient import client as cinder_client
+from keystoneclient.auth.identity import v2
+from keystoneclient import session
+from keystoneclient.v2_0 import client
+from neutronclient.neutron import client as neutron_client
+from novaclient import client as nova_cli
+
+
+URL = 'http://localhost:5000/v2.0'
+USER = 'admin'
+PASSWORD = 'test'
+TENANT = 'admin'
+BASE_DIR = '/var/log/reports/'
+
+
+CINDER_FIELDS = [
+    'gigabytes',
+    'gigabytes_lvmdriver-1',
+    'snapshots',
+    'snapshots_lvmdriver-1',
+    'volumes',
+    'volumes_lvmdriver-1',
+
+]
+
+
+def main():
+    auth = v2.Password(auth_url=URL,
+                       username=USER,
+                       password=PASSWORD,
+                       tenant_name=TENANT)
+    sess = session.Session(auth=auth)
+    _nova_cli = nova_cli.Client(2, session=sess)
+    _cinder_cli = cinder_client.Client(2, session=sess)
+    _neutron_cli = neutron_client.Client(2.0, session=sess)
+    keystone = client.Client(auth_url=URL,
+                             username=USER,
+                             password=PASSWORD,
+                             tenant_name=TENANT)
+    tenants = dict((r.id, r.name) for r in keystone.tenants.list())
+    rows = []
+    for tenant_id, tenant_name in tenants.iteritems():
+        nova_quotas = _nova_cli.quotas.get(tenant_id)
+        cinder_quotas = _cinder_cli.quotas.get(tenant_id)
+
+        neutron_quotas = _neutron_cli.show_quota(tenant_id)
+        for k, v in nova_quotas.to_dict().iteritems():
+            rows.append(('nova_quotas', k, v))
+        for k in CINDER_FIELDS:
+            rows.append(('cinder_quotas', k, getattr(cinder_quotas, k)))
+        for k, v in neutron_quotas['quota'].iteritems():
+            rows.append(('neutron_quotas', k, v))
+        today = datetime.datetime.now().strftime('%Y-%m-%d')
+        f_name = BASE_DIR + '%s_tenant_quotas_%s.csv' % (tenant_name, today)
+        with open(f_name, 'wb') as f:
+            wr = csv.writer(f, quoting=csv.QUOTE_ALL)
+            for row in rows:
+                wr.writerow(row)
+        print "Result was stored in ", f_name
