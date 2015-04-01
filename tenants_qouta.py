@@ -14,6 +14,9 @@
 
 import csv
 import datetime
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import smtplib
 
 from cinderclient import client as cinder_client
 from keystoneclient.auth.identity import v2
@@ -28,6 +31,29 @@ USER = 'admin'
 PASSWORD = 'test'
 TENANT = 'admin'
 BASE_DIR = '/var/log/reports/'
+OWNER_ROLE = 'admin'
+FROM = 'REPORT_QOUTAS@openstack.com'
+HEAD = """
+<html>
+ <head>
+  <meta charset="utf-8">
+  <style>
+   td {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 10pt;
+    padding: 5px;
+   }
+  </style>
+ </head>
+ <body>
+ <table border="1" cellpadding="0" cellspacing="0">
+   <tr>
+      <td>component</td>
+      <td align='center'>qouta type</td>
+      <td align='center'>value</td>
+ </tr>
+"""
+FOOT = '</table><body></html>'
 
 
 CINDER_FIELDS = [
@@ -54,19 +80,29 @@ def main():
                              username=USER,
                              password=PASSWORD,
                              tenant_name=TENANT)
+    users = keystone.users.list()
     tenants = dict((r.id, r.name) for r in keystone.tenants.list())
-    rows = []
+    s = smtplib.SMTP()
+    s.connect()
     for tenant_id, tenant_name in tenants.iteritems():
+        rows = []
+        user_owners = {}
+        for user in users:
+            roles = user.list_roles(tenant_id)
+            owner_role = [r for r in roles if r.name == OWNER_ROLE]
+            if owner_role:
+                user_owners[user.name] = user.email
         nova_quotas = _nova_cli.quotas.get(tenant_id)
         cinder_quotas = _cinder_cli.quotas.get(tenant_id)
 
         neutron_quotas = _neutron_cli.show_quota(tenant_id)
         for k, v in nova_quotas.to_dict().iteritems():
-            rows.append(('nova_quotas', k, v))
+            if k != 'id':
+                rows.append(('NOVA', k, str(v)))
         for k in CINDER_FIELDS:
-            rows.append(('cinder_quotas', k, getattr(cinder_quotas, k)))
+            rows.append(('CINDER', k, str(getattr(cinder_quotas, k))))
         for k, v in neutron_quotas['quota'].iteritems():
-            rows.append(('neutron_quotas', k, v))
+            rows.append(('NEUTRON', k, str(v)))
         today = datetime.datetime.now().strftime('%Y-%m-%d')
         f_name = BASE_DIR + '%s_tenant_quotas_%s.csv' % (tenant_name, today)
         with open(f_name, 'wb') as f:
@@ -74,3 +110,21 @@ def main():
             for row in rows:
                 wr.writerow(row)
         print "Result was stored in ", f_name
+        if user_owners:
+            body = ''
+            for (component, name, value) in rows:
+                body += "<tr><td>%s</td><td align='center'>%s</td>"\
+                        "<td align='center'>%s</td></tr>" % (component,
+                                                             name,
+                                                             value)
+            message = ''.join((HEAD, body, FOOT))
+            msg = MIMEMultipart()
+            msg['Subject'] = 'Tenant quotas report (%s)' % tenant_name
+            msg['From'] = FROM
+            msg['To'] = ','.join(user_owners.values())
+            msg.set_charset('utf-8')
+            msg.set_default_type("text/html")
+            msg.attach(MIMEText(message, 'html', _charset='utf-8'))
+            for email in user_owners.values():
+                s.sendmail(FROM, email, msg.as_string())
+    s.quit()
