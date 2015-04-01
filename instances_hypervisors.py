@@ -59,9 +59,14 @@ def main():
             for addresses in i.networks.values():
                 networks.extend(addresses)
             tenant_name = tenants[tenant]
+            flavor = cli.flavors.get(i.flavor['id'])
+            flavor_str = "%s (ram %s, vcpus %s)" % (
+                flavor.name, flavor.ram, flavor.vcpus)
             ret.append((hypervisor,
                         tenant_name,
                         instance_name,
+                        i.status,
+                        flavor_str,
                         ','.join(networks)))
     today = datetime.datetime.now().strftime('%Y-%m-%d')
     f_name = BASE_DIR + 'instances_hypervisors_%s.csv' % today
