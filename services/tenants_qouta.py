@@ -32,8 +32,7 @@ PASSWORD = 'test'
 TENANT = 'admin'
 BASE_DIR = '/var/log/reports/'
 OWNER_ROLE = 'admin'
-#FROM = 'REPORT_QOUTAS@openstack.com'
-FROM = 'sshturm@mirantis.com'
+FROM = 'REPORT_QOUTAS@openstack.com'
 HEAD = """
 <html>
  <head>
@@ -92,7 +91,9 @@ def main():
             roles = user.list_roles(tenant_id)
             owner_role = [r for r in roles if r.name == OWNER_ROLE]
             if owner_role:
-                user_owners[user.name] = user.email
+                email = getattr(user, 'email', None)
+                if email is not None:
+                    user_owners[user.name] = email
         nova_quotas = _nova_cli.quotas.get(tenant_id)
         cinder_quotas = _cinder_cli.quotas.get(tenant_id)
 
