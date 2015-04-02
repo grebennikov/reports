@@ -99,13 +99,12 @@ def main():
                 email = getattr(user, 'email', None)
                 if email is not None:
                     user_owners[user.name] = email
-        nova_quotas = _nova_cli.usage.get(tenant_id, start, end)
+        nova_quotas = _nova_cli.usage.get(tenant_id, start, end).to_dict()
         cinder_quotas = _cinder_cli.quotas.get(tenant_id)
 
-        for k in NOVA_KEYS:
-            nova_quotas_dict = nova_quotas.to_dict()
-            if k in nova_quotas_dict.keys():
-                rows.append(('NOVA', k, str(nova_quotas_dict[k])))
+        for k, v in nova_quotas.iteritems():
+            if k in NOVA_KEYS:
+                rows.append(('NOVA', k, "%.2f" % v))
         for k in CINDER_KEYS:
             rows.append(('CINDER', k, str(getattr(cinder_quotas, k))))
         today = datetime.datetime.now().strftime('%Y-%m-%d')
