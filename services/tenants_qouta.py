@@ -24,6 +24,7 @@ from keystoneclient import session
 from keystoneclient.v2_0 import client
 from neutronclient.neutron import client as neutron_client
 from novaclient import client as nova_cli
+from oslo.utils import timeutils
 
 
 URL = 'http://localhost:5000/v2.0'
@@ -54,9 +55,14 @@ HEAD = """
  </tr>
 """
 FOOT = '</table><body></html>'
+NOVA_KEYS = [
+    'total_memory_mb_usage',
+    'total_vcpus_usage',
+    'total_hours',
+    'total_local_gb_usage',
+]
 
-
-CINDER_FIELDS = [
+CINDER_KEYS = [
     'gigabytes',
     'snapshots',
     'volumes',
@@ -78,6 +84,9 @@ def main():
                              tenant_name=TENANT)
     users = keystone.users.list()
     tenants = dict((r.id, r.name) for r in keystone.tenants.list())
+    now = timeutils.utcnow()
+    start = now - datetime.timedelta(weeks=4)
+    end = now + datetime.timedelta(days=1)
     s = smtplib.SMTP()
     s.connect()
     for tenant_id, tenant_name in tenants.iteritems():
@@ -90,17 +99,15 @@ def main():
                 email = getattr(user, 'email', None)
                 if email is not None:
                     user_owners[user.name] = email
-        nova_quotas = _nova_cli.quotas.get(tenant_id)
+        nova_quotas = _nova_cli.usage.get(tenant_id, start, end)
         cinder_quotas = _cinder_cli.quotas.get(tenant_id)
 
-        neutron_quotas = _neutron_cli.show_quota(tenant_id)
-        for k, v in nova_quotas.to_dict().iteritems():
-            if k != 'id':
-                rows.append(('NOVA', k, str(v)))
-        for k in CINDER_FIELDS:
+        for k in NOVA_KEYS:
+            nova_quotas_dict = nova_quotas.to_dict()
+            if k in nova_quotas_dict.keys():
+                rows.append(('NOVA', k, str(nova_quotas_dict[k])))
+        for k in CINDER_KEYS:
             rows.append(('CINDER', k, str(getattr(cinder_quotas, k))))
-        for k, v in neutron_quotas['quota'].iteritems():
-            rows.append(('NEUTRON', k, str(v)))
         today = datetime.datetime.now().strftime('%Y-%m-%d')
         f_name = BASE_DIR + '%s_tenant_quotas_%s.csv' % (tenant_name, today)
         with open(f_name, 'wb') as f:
