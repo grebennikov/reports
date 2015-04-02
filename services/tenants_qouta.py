@@ -58,12 +58,8 @@ FOOT = '</table><body></html>'
 
 CINDER_FIELDS = [
     'gigabytes',
-    'gigabytes_lvmdriver-1',
     'snapshots',
-    'snapshots_lvmdriver-1',
     'volumes',
-    'volumes_lvmdriver-1',
-
 ]
 
 
