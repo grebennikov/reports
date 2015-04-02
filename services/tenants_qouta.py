@@ -32,7 +32,8 @@ PASSWORD = 'test'
 TENANT = 'admin'
 BASE_DIR = '/var/log/reports/'
 OWNER_ROLE = 'admin'
-FROM = 'REPORT_QOUTAS@openstack.com'
+#FROM = 'REPORT_QOUTAS@openstack.com'
+FROM = 'sshturm@mirantis.com'
 HEAD = """
 <html>
  <head>

@@ -23,8 +23,8 @@ setup(
     packages=find_packages(),
     entry_points={
         'console_scripts': [
-            'instances-per-tenant=instances_hypervisors:main',
-            'quotas-per-tenants=tenants_qouta:main']},
+            'instances-per-tenant=services.instances_hypervisors:main',
+            'quotas-per-tenants=services.tenants_qouta:main']},
 
     # metadata for upload to PyPI
     description="Reports for tenants",
