@@ -48,25 +48,28 @@ def main():
             instances_per_tenants[i.tenant_id] = [i]
         else:
             instances_per_tenants[i.tenant_id].append(i)
-    #hypervisorX,Tenant_name,Instance_name1,ip_addresses(all)
     for tenant in sorted(instances_per_tenants):
         instances = instances_per_tenants[tenant]
         for i in instances:
+            macs = [interface.mac_addr for interface in i.interface_list()]
             instance_dict = i.to_dict()
             hypervisor = instance_dict['OS-EXT-SRV-ATTR:hypervisor_hostname']
-            instance_name = i.name
             networks = []
             for addresses in i.networks.values():
                 networks.extend(addresses)
             tenant_name = tenants[tenant]
             flavor = cli.flavors.get(i.flavor['id'])
-            flavor_str = "%s (ram %s, vcpus %s)" % (
-                flavor.name, flavor.ram, flavor.vcpus)
+            flavor_str = "%s (ram %s, vcpus %s, disk %s)" % (
+                flavor.name, flavor.ram, flavor.vcpus, flavor.disk)
+            image = cli.images.get(i.image['id'])
+            os = image.metadata.get('os', 'OS field is missing')
             ret.append((hypervisor,
                         tenant_name,
-                        instance_name,
+                        "%s (%s)" % (i.name, i.created),
                         i.status,
                         flavor_str,
+                        os,
+                        macs,
                         ','.join(networks)))
     today = datetime.datetime.now().strftime('%Y-%m-%d')
     f_name = BASE_DIR + 'instances_hypervisors_%s.csv' % today
