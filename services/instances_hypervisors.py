@@ -52,6 +52,7 @@ def main():
         instances = instances_per_tenants[tenant]
         for i in instances:
             macs = [interface.mac_addr for interface in i.interface_list()]
+            mac  = macs[0] if macs else ''
             instance_dict = i.to_dict()
             hypervisor = instance_dict['OS-EXT-SRV-ATTR:hypervisor_hostname']
             networks = []
@@ -65,11 +66,12 @@ def main():
             os = image.metadata.get('os', 'OS field is missing')
             ret.append((hypervisor,
                         tenant_name,
-                        "%s (%s)" % (i.name, i.created),
+                        i.name,
+                        i.created,
                         i.status,
                         flavor_str,
                         os,
-                        macs,
+                        mac,
                         ','.join(networks)))
     today = datetime.datetime.now().strftime('%Y-%m-%d')
     f_name = BASE_DIR + 'instances_hypervisors_%s.csv' % today
