@@ -57,7 +57,7 @@ def main():
             networks = []
             for addresses in i.networks.values():
                 networks.extend(addresses)
-            tenant_name = tenants[tenant]
+            tenant_name = tenants.get(tenant, "Unknown tenant %s" % tenant)
             flavor = cli.flavors.get(i.flavor['id'])
             flavor_str = "%s (ram %s, vcpus %s, disk %s)" % (
                 flavor.name, flavor.ram, flavor.vcpus, flavor.disk)
