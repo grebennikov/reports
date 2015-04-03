@@ -106,9 +106,10 @@ def main():
         rows.append(('NOVA', 'vcpus', str(vcpus)))
         rows.append(('NOVA', 'local_gb', str(local_gb)))
 
-        cinder_quotas = _cinder_cli.quotas.get(tenant_id)
+        cinder_quotas = _cinder_cli.quotas.get(tenant_id, usage=True)
         for k in CINDER_KEYS:
-            rows.append(('CINDER', k, str(getattr(cinder_quotas, k))))
+            usage = getattr(cinder_quotas, k)['in_use']
+            rows.append(('CINDER', k, str(usage)))
         today = datetime.datetime.now().strftime('%Y-%m-%d')
         f_name = BASE_DIR + '%s_tenant_quotas_%s.csv' % (tenant_name, today)
         with open(f_name, 'wb') as f:
