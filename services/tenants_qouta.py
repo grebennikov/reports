@@ -79,7 +79,7 @@ def main():
     users = keystone.users.list()
     tenants = dict((r.id, r.name) for r in keystone.tenants.list())
     now = timeutils.utcnow()
-    start = now - datetime.timedelta(weeks=4)
+    start = now - datetime.timedelta(days=1)
     end = now + datetime.timedelta(days=1)
     s = smtplib.SMTP()
     s.connect()
