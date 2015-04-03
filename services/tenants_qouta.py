@@ -55,12 +55,6 @@ HEAD = """
  </tr>
 """
 FOOT = '</table><body></html>'
-NOVA_KEYS = [
-    'total_memory_mb_usage',
-    'total_vcpus_usage',
-    'total_hours',
-    'total_local_gb_usage',
-]
 
 CINDER_KEYS = [
     'gigabytes',
@@ -100,11 +94,19 @@ def main():
                 if email is not None:
                     user_owners[user.name] = email
         nova_quotas = _nova_cli.usage.get(tenant_id, start, end).to_dict()
-        cinder_quotas = _cinder_cli.quotas.get(tenant_id)
+        memory_mb = 0
+        vcpus = 0
+        local_gb = 0
+        for server in nova_quotas.get('server_usages', []):
+            if server['state'] != 'terminated':
+                memory_mb += int(server['memory_mb'])
+                vcpus += int(server['vcpus'])
+                local_gb += int(server['local_gb'])
+        rows.append(('NOVA', 'memory_mb', str(memory_mb)))
+        rows.append(('NOVA', 'vcpus', str(vcpus)))
+        rows.append(('NOVA', 'local_gb', str(local_gb)))
 
-        for k, v in nova_quotas.iteritems():
-            if k in NOVA_KEYS:
-                rows.append(('NOVA', k, "%.2f" % v))
+        cinder_quotas = _cinder_cli.quotas.get(tenant_id)
         for k in CINDER_KEYS:
             rows.append(('CINDER', k, str(getattr(cinder_quotas, k))))
         today = datetime.datetime.now().strftime('%Y-%m-%d')
