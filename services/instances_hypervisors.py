@@ -66,6 +66,7 @@ def main():
             os = image.metadata.get('os', 'OS field is missing')
             ret.append((hypervisor,
                         tenant_name,
+                        i.user_id,
                         i.name,
                         i.created,
                         i.status,
